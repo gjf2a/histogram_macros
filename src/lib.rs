@@ -69,6 +69,21 @@ macro_rules! get_skeleton {
     }
 }
 
+macro_rules! total_skeleton {
+    ($d:expr, $z:expr) => {
+        $d.iter().map(|(_,value)| value).copied().reduce(|acc, n| acc + n).unwrap_or($z)
+    }
+}
+
+#[macro_export]
+macro_rules! total {
+    ($d:expr) => {total_skeleton!($d, 0)}
+}
+
+#[macro_export]
+macro_rules! total_weight {
+    ($d:expr) => {total_skeleton!($d, 0.0)}
+}
 
 #[cfg(test)]
 mod tests {
@@ -86,6 +101,7 @@ mod tests {
         assert_eq!(count_ref!(hist, "balk"), 1);
         assert_eq!(count_ref!(hist, "talk"), 1);
         assert_eq!(count_ref!(hist, "sulk"), 0);
+        assert_eq!(total!(hist), 4);
     }
 
     #[test]
@@ -99,6 +115,7 @@ mod tests {
         assert_eq!(count!(hist, "balk".to_owned()), 1);
         assert_eq!(count!(hist, "talk".to_owned()), 1);
         assert_eq!(count!(hist, "sulk".to_owned()), 0);
+        assert_eq!(total!(hist), 4);
     }
 
     #[test]
@@ -110,6 +127,7 @@ mod tests {
         assert_eq!(count!(hist, 3), 2);
         assert_eq!(count!(hist, 4), 0);
         assert_eq!(count!(hist, 5), 1);
+        assert_eq!(total!(hist), 3);
     }
 
     #[test]
@@ -120,5 +138,6 @@ mod tests {
         bump_ref_by!(hist, "hi", 0.3);
         assert_eq!(weight_ref!(hist, "hi"), 1.8);
         assert_eq!(weight_ref!(hist, "bye"), 2.6);
+        assert_eq!(total_weight!(hist), 4.4);
     }
 }
