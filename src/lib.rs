@@ -1,4 +1,4 @@
-macro_rules! bump {
+macro_rules! bump_skeleton {
     ($d:expr, $kg:expr, $ki:expr, $v:expr) => {
         match $d.get_mut($kg) {
             None => {$d.insert($ki, $v);}
@@ -17,21 +17,21 @@ macro_rules! bump_ref {
 #[macro_export]
 macro_rules! bump_ref_by {
     ($d:expr, $k:expr, $v:expr) => {
-        bump!($d, $k, $k.to_owned(), $v)
+        bump_skeleton!($d, $k, $k.to_owned(), $v)
     }
 }
 
 #[macro_export]
-macro_rules! bump_copy {
+macro_rules! bump {
     ($d:expr, $k:expr) => {
-        bump_copy_by!($d, $k, 1)
+        bump_by!($d, $k, 1)
     }
 }
 
 #[macro_export]
-macro_rules! bump_copy_by {
+macro_rules! bump_by {
     ($d:expr, $k:expr, $v:expr) => {
-        bump!($d, &$k, $k, $v)
+        bump_skeleton!($d, &$k, $k, $v)
     }
 }
 
@@ -69,9 +69,9 @@ mod tests {
     #[test]
     fn test_int() {
         let mut hist = HashMap::new();
-        bump_copy!(hist, 3);
-        bump_copy!(hist, 5);
-        bump_copy!(hist, 3);
+        bump!(hist, 3);
+        bump!(hist, 5);
+        bump!(hist, 3);
         assert_eq!(count!(hist, 3), 2);
         println!("{:?}", hist);
     }
