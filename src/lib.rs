@@ -85,6 +85,24 @@ macro_rules! total_weight {
     ($d:expr) => {total_skeleton!($d, 0.0)}
 }
 
+#[macro_export]
+macro_rules! mode {
+    ($d:expr) => {
+        $d.iter()
+            .max_by_key(|(_,count)| **count)
+            .map(|(key, _)| key.clone())
+    }
+}
+
+#[macro_export]
+macro_rules! mode_by_weight {
+    ($d:expr) => {
+        $d.iter()
+            .max_by_key(|(_,count)| ordered_float::OrderedFloat(**count))
+            .map(|(key, _)| key.clone())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -102,6 +120,7 @@ mod tests {
         assert_eq!(count_ref!(hist, "talk"), 1);
         assert_eq!(count_ref!(hist, "sulk"), 0);
         assert_eq!(total!(hist), 4);
+        assert_eq!(mode!(hist).unwrap(), "walk");
     }
 
     #[test]
@@ -121,13 +140,14 @@ mod tests {
     #[test]
     fn test_int() {
         let mut hist = HashMap::new();
-        bump!(hist, 3);
+        bump!(hist, 6);
         bump!(hist, 5);
-        bump!(hist, 3);
-        assert_eq!(count!(hist, 3), 2);
+        bump!(hist, 6);
         assert_eq!(count!(hist, 4), 0);
         assert_eq!(count!(hist, 5), 1);
+        assert_eq!(count!(hist, 6), 2);
         assert_eq!(total!(hist), 3);
+        assert_eq!(mode!(hist).unwrap(), 6)
     }
 
     #[test]
@@ -139,5 +159,6 @@ mod tests {
         assert_eq!(weight_ref!(hist, "hi"), 1.8);
         assert_eq!(weight_ref!(hist, "bye"), 2.6);
         assert_eq!(total_weight!(hist), 4.4);
+        assert_eq!(mode_by_weight!(hist).unwrap(), "bye");
     }
 }
