@@ -103,10 +103,32 @@ macro_rules! mode_by_weight {
     }
 }
 
+#[macro_export]
+macro_rules! ranking {
+    ($d:expr) => {
+        {
+            let mut ranking = $d.iter().map(|(t, n)| (*n, t.clone())).collect::<Vec<_>>();
+            ranking.sort();
+            ranking.drain(..).rev().map(|(_,t)| t).collect::<Vec<_>>()
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! ranking_by_weight {
+    ($d:expr) => {
+        {
+            let mut ranking = $d.iter().map(|(t, n)| (OrderedFloat(*n), t.clone())).collect::<Vec<_>>();
+            ranking.sort();
+            ranking.drain(..).rev().map(|(_,t)| t).collect::<Vec<_>>()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use super::*;
+    use ordered_float::OrderedFloat;
 
     #[test]
     fn test_str() {
@@ -147,7 +169,10 @@ mod tests {
         assert_eq!(count!(hist, 5), 1);
         assert_eq!(count!(hist, 6), 2);
         assert_eq!(total!(hist), 3);
-        assert_eq!(mode!(hist).unwrap(), 6)
+        assert_eq!(mode!(hist).unwrap(), 6);
+
+        let r = ranking!(hist);
+        println!("{:?}", r);
     }
 
     #[test]
@@ -160,5 +185,8 @@ mod tests {
         assert_eq!(weight_ref!(hist, "bye"), 2.6);
         assert_eq!(total_weight!(hist), 4.4);
         assert_eq!(mode_by_weight!(hist).unwrap(), "bye");
+
+        let r = ranking_by_weight!(hist);
+        println!("{:?}", r);
     }
 }
