@@ -38,9 +38,17 @@ macro_rules! bump_copy_by {
 #[macro_export]
 macro_rules! count {
     ($d:expr, $k:expr) => {
+        count_ref!($d, &$k)
+    }
+}
+
+#[macro_export]
+macro_rules! count_ref {
+    ($d:expr, $k:expr) => {
         *($d.get($k).unwrap_or(&0))
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -54,7 +62,7 @@ mod tests {
         bump_ref!(hist, "talk");
         bump_ref!(hist, "walk");
         bump_ref!(hist, "balk");
-        assert_eq!(count!(hist, "walk"), 2);
+        assert_eq!(count_ref!(hist, "walk"), 2);
         println!("{:?}", hist);
     }
 
@@ -64,6 +72,7 @@ mod tests {
         bump_copy!(hist, 3);
         bump_copy!(hist, 5);
         bump_copy!(hist, 3);
+        assert_eq!(count!(hist, 3), 2);
         println!("{:?}", hist);
     }
 }
