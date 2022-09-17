@@ -14,14 +14,15 @@
 //!
 //! let mut num_counts: HashMap<isize, usize> = HashMap::new();
 //! for i in [100, 200, -100, 200, 300, 200, 100, 200, 100, 300].iter().copied() {
+//!     // Use bump! to increase the count of an element by 1.
 //!     bump!(num_counts, i);
 //! }
 //!
-//! for (i, c) in [(-100, 1), (100, 3), (200, 4), (300, 2)].iter().copied() {
+//! for (i, c) in [(-100, 1), (100, 3), (200, 4), (300, 2), (400, 0)].iter().copied() {
+//!     // Use count! to find how many times an element has been counted.
 //!     assert_eq!(count!(num_counts, i), c);
 //! }
 //!
-//! // Record and inspect histogram counts.
 //! let mut str_counts: HashMap<String, usize> = HashMap::new();
 //! for s in ["a", "b", "a", "b", "c", "b", "a", "c", "b"].iter().copied() {
 //!     // Use bump_ref! when passing in keys by reference.
@@ -31,7 +32,11 @@
 //! // Use bump! when passing concrete values.
 //! bump!(str_counts, "d".to_owned());
 //!
-//! for (s, c) in [("a", 3), ("b", 4), ("c", 2), ("d", 1), ("e", 0)].iter().copied() {
+//! // Bump count by larger values.
+//! bump_by!(num_counts, 200, 3);
+//! bump_ref_by!(str_counts, "b", 5);
+//!
+//! for (s, c) in [("a", 3), ("b", 9), ("c", 2), ("d", 1), ("e", 0)].iter().copied() {
 //!     // Use count_ref! when checking keys by reference.
 //!     assert_eq!(count_ref!(str_counts, s), c);
 //! }
@@ -40,8 +45,8 @@
 //! assert_eq!(count!(str_counts, "f".to_owned()), 0);
 //!
 //! // Total counts
-//! assert_eq!(total!(num_counts), 10);
-//! assert_eq!(total!(str_counts), 10);
+//! assert_eq!(total!(num_counts), 13);
+//! assert_eq!(total!(str_counts), 15);
 //!
 //! // Ranked ordering
 //! assert_eq!(ranking!(num_counts), vec![200, 100, 300, -100]);
@@ -52,6 +57,33 @@
 //! assert_eq!(mode!(str_counts).unwrap(), "b");
 //! ```
 //!
+//! In addition to integer counts, we can use `bump_by!` and `bump_ref_by!` to assign
+//! floating-point valued weights.
+//!
+//! ```
+//! use histogram_macros::*;
+//! use std::collections::BTreeMap;
+//!
+//! let mut num_weights: BTreeMap<isize,f64> = BTreeMap::new();
+//!
+//! for (n, w) in [(1, 0.4), (2, 0.4), (1, 1.6), (3, 0.8)].iter().copied() {
+//!     bump_by!(num_weights, n, w);
+//! }
+//!
+//! for (n, w) in [(1, 2.0), (2, 0.4), (3, 0.8)].iter().copied() {
+//!     // Use weight! (or weight_ref!) instead of count! (or count_ref!)
+//!     assert_eq!(weight!(num_weights, n), w);
+//! }
+//!
+//! // Total weight
+//! assert_eq!(total_weight!(num_weights), 3.2);
+//!
+//! // Most popular (mode), by weight
+//! assert_eq!(mode_by_weight!(num_weights).unwrap(), 1);
+//!
+//! // Ranked by weight
+//! assert_eq!(ranking_by_weight!(num_weights), vec![1, 3, 2]);
+//! ```
 
 
 //    Copyright 2022, Gabriel J. Ferrer
@@ -268,22 +300,5 @@ mod tests {
 
         let r = ranking_by_weight!(hist);
         println!("{:?}", r);
-    }
-
-    #[test]
-    fn old_test() {
-        let observations = ["a", "b", "a", "b", "c", "b", "a", "b"];
-        let mut h: HashMap<String, i32> = HashMap::new();
-        for s in observations.iter().copied() {
-            bump_ref!(h, s);
-        }
-
-        for (s, c) in [("a", 3), ("b", 4), ("c", 1), ("d", 0)].iter().copied() {
-            assert_eq!(count_ref!(h, s), c);
-        }
-
-        assert_eq!(total!(h), 8);
-        assert_eq!(ranking!(h), vec!["b", "a", "c"]);
-        assert_eq!(mode!(h).unwrap(), "b");
     }
 }
