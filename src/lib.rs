@@ -89,7 +89,7 @@
 //! assert_eq!(ranking_by_weight!(num_weights), vec![1, 3, 2]);
 //! ```
 //!
-//! Building a histogram from a set of values is a common pattern. You can use the
+//! Building a histogram from a sequence of values is a common pattern. You can use the
 //! `collect_from_into!`, `collect_from_ref_into!`, `collect_from_by_into!`, and
 //! `collect_from_ref_by_into!` macros to abstract this pattern.
 //!
