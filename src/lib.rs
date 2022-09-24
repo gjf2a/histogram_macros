@@ -8,6 +8,9 @@
 //! `pub fn get_mut<Q: ?Sized>(&mut self, k: &Q) -> Option<&mut V> where K: Borrow<Q>`
 //! `pub fn iter(&self) -> Iter<'_, K, V>`
 //!
+//! Because the similarity between `HashMap`, `BTreeMap`, and other similar types is structural,
+//! without implementing a common `trait`, using macros enables the creation of common algorithms.
+//!
 //! ```
 //! use std::collections::HashMap;
 //! use histogram_macros::*;
@@ -58,7 +61,8 @@
 //! ```
 //!
 //! In addition to integer counts, we can use `bump_by!` and `bump_ref_by!` to assign
-//! floating-point valued weights.
+//! floating-point valued weights. We use `weight!`, `weight_ref!`, `total_weight!`, and
+//! `mode_by_weight!` instead of the `count!` macros to look up results.
 //!
 //! ```
 //! use histogram_macros::*;
@@ -83,6 +87,23 @@
 //!
 //! // Ranked by weight
 //! assert_eq!(ranking_by_weight!(num_weights), vec![1, 3, 2]);
+//! ```
+//!
+//! Building a histogram from a set of values is a common pattern. You can use the
+//! `collect_from_into!` and `collect_from_ref_into!` macros to abstract this pattern.
+//!
+//! ```
+//! let num_counts = collect_from_into!([100, 200, -100, 200, 300, 200, 100, 200, 100, 300]
+//!     .iter().copied(), HashMap::<i64, usize>::new());
+//! for (i, c) in [(-100, 1), (100, 3), (200, 4), (300, 2), (400, 0)].iter().copied() {
+//!     assert_eq!(count!(num_counts, i), c);
+//! }
+//!
+//! let str_counts = collect_from_ref_into!(["a", "b", "a", "b", "c", "b", "a", "c", "b"]
+//!     .iter().copied(), HashMap::<String, usize>::new());
+//! for (s, c) in [("a", 3), ("b", 9), ("c", 2), ("d", 1), ("e", 0)].iter().copied() {
+//!     assert_eq!(count_ref!(str_counts, s), c);
+//! }
 //! ```
 
 
@@ -238,9 +259,35 @@ macro_rules! ranking_by_weight {
     }
 }
 
+#[macro_export]
+macro_rules! collect_from_into {
+    ($iter:expr, $d:expr) => {
+        {
+            let mut result = $d;
+            for item in $iter {
+                bump!(result, item);
+            }
+            result
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! collect_from_ref_into {
+    ($iter:expr, $d:expr) => {
+        {
+            let mut result = $d;
+            for item in $iter {
+                bump_ref!(result, item);
+            }
+            result
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
 
     #[test]
     fn test_str() {
@@ -300,5 +347,18 @@ mod tests {
 
         let r = ranking_by_weight!(hist);
         println!("{:?}", r);
+    }
+
+    #[test]
+    fn test_collect() {
+        let h = collect_from_into!([100, 200, -100, 200, 300, 200, 100, 200, 100, 300]
+            .iter().copied(), BTreeMap::<i64, usize>::new());
+        assert_eq!(format!("{:?}", h), "{-100: 1, 100: 3, 200: 4, 300: 2}");
+    }
+
+    #[test]
+    fn test_collect_by() {
+        let h = collect_from_ref_into!(["a", "b", "a", "b", "c", "b", "a", "c", "b"].iter().copied(), BTreeMap::<String, usize>::new());
+        assert_eq!(format!("{:?}", h), r#"{"a": 3, "b": 4, "c": 2}"#);
     }
 }
