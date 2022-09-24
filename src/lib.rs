@@ -90,9 +90,13 @@
 //! ```
 //!
 //! Building a histogram from a set of values is a common pattern. You can use the
-//! `collect_from_into!` and `collect_from_ref_into!` macros to abstract this pattern.
+//! `collect_from_into!`, `collect_from_ref_into!`, `collect_from_by_into!`, and
+//! `collect_from_ref_by_into!` macros to abstract this pattern.
 //!
 //! ```
+//! use histogram_macros::*;
+//! use std::collections::HashMap;
+//!
 //! let num_counts = collect_from_into!([100, 200, -100, 200, 300, 200, 100, 200, 100, 300]
 //!     .iter().copied(), HashMap::<i64, usize>::new());
 //! for (i, c) in [(-100, 1), (100, 3), (200, 4), (300, 2), (400, 0)].iter().copied() {
@@ -101,8 +105,20 @@
 //!
 //! let str_counts = collect_from_ref_into!(["a", "b", "a", "b", "c", "b", "a", "c", "b"]
 //!     .iter().copied(), HashMap::<String, usize>::new());
-//! for (s, c) in [("a", 3), ("b", 9), ("c", 2), ("d", 1), ("e", 0)].iter().copied() {
+//! for (s, c) in [("a", 3), ("b", 4), ("c", 2), ("d", 0)].iter().copied() {
 //!     assert_eq!(count_ref!(str_counts, s), c);
+//! }
+//!
+//! let num_weights = collect_from_by_into!([(1, 0.4), (2, 0.4), (1, 1.6), (3, 0.8)].iter().copied(),
+//!     HashMap::<isize, f64>::new());
+//! for (n, w) in [(1, 2.0), (2, 0.4), (3, 0.8)].iter().copied() {
+//!     assert_eq!(weight!(num_weights, n), w);
+//! }
+//!
+//! let str_weights = collect_from_ref_by_into!([("a", 0.4), ("b", 0.2), ("a", 1.2), ("b", 0.8)]
+//!     .iter().copied(), HashMap::<String, f64>::new());
+//! for (s, w) in [("a", 1.6), ("b", 1.0)].iter().copied() {
+//!     assert_eq!(weight_ref!(str_weights, s), w);
 //! }
 //! ```
 
@@ -260,12 +276,12 @@ macro_rules! ranking_by_weight {
 }
 
 #[macro_export]
-macro_rules! collect_from_into {
-    ($iter:expr, $d:expr) => {
+macro_rules! collect_from_skeleton {
+    ($iter:expr, $d:expr, $b:ident) => {
         {
             let mut result = $d;
             for item in $iter {
-                bump!(result, item);
+                $b!(result, item);
             }
             result
         }
@@ -273,15 +289,42 @@ macro_rules! collect_from_into {
 }
 
 #[macro_export]
+macro_rules! collect_from_into {
+    ($iter:expr, $d:expr) => {
+        collect_from_skeleton!($iter, $d, bump)
+    }
+}
+
+#[macro_export]
 macro_rules! collect_from_ref_into {
     ($iter:expr, $d:expr) => {
+        collect_from_skeleton!($iter, $d, bump_ref)
+    }
+}
+
+#[macro_export]
+macro_rules! collect_from_by_skeleton {
+    ($iter:expr, $d:expr, $b:ident) => {
         {
             let mut result = $d;
-            for item in $iter {
-                bump_ref!(result, item);
+            for (k, count) in $iter {
+                $b!(result, k, count);
             }
             result
         }
+    }
+}
+#[macro_export]
+macro_rules! collect_from_by_into {
+    ($iter:expr, $d:expr) => {
+        collect_from_by_skeleton!($iter, $d, bump_by)
+    }
+}
+
+#[macro_export]
+macro_rules! collect_from_ref_by_into {
+    ($iter:expr, $d:expr) => {
+        collect_from_by_skeleton!($iter, $d, bump_ref_by)
     }
 }
 
