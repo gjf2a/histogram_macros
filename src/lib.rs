@@ -12,8 +12,9 @@
 //! without implementing a common `trait`, using macros enables the creation of common algorithms.
 //!
 //! ```
-//! use std::collections::HashMap;
 //! use histogram_macros::*;
+//! use std::collections::HashMap;
+//! use std::collections::VecDeque;
 //!
 //! let mut num_counts: HashMap<isize, usize> = HashMap::new();
 //! for i in [100, 200, -100, 200, 300, 200, 100, 200, 100, 300].iter().copied() {
@@ -52,8 +53,8 @@
 //! assert_eq!(total!(str_counts), 15);
 //!
 //! // Ranked ordering
-//! assert_eq!(ranking!(num_counts), vec![200, 100, 300, -100]);
-//! assert_eq!(ranking!(str_counts), vec!["b", "a", "c", "d"]);
+//! assert_eq!(ranking!(num_counts), VecDeque::from([(200, 7), (100, 3), (300, 2), (-100, 1)]));
+//! assert_eq!(ranking!(str_counts), VecDeque::from([("b".to_owned(), 9), ("a".to_owned(), 3), ("c".to_owned(), 2), ("d".to_owned(), 1)]));
 //!
 //! // Key with the most counts (the mode)
 //! assert_eq!(mode!(num_counts).unwrap(), 200);
@@ -67,6 +68,8 @@
 //! ```
 //! use histogram_macros::*;
 //! use std::collections::BTreeMap;
+//! use std::collections::VecDeque;
+//! use ordered_float::OrderedFloat;
 //!
 //! let mut num_weights: BTreeMap<isize,f64> = BTreeMap::new();
 //!
@@ -86,7 +89,7 @@
 //! assert_eq!(mode_by_weight!(num_weights).unwrap(), 1);
 //!
 //! // Ranked by weight
-//! assert_eq!(ranking_by_weight!(num_weights), vec![1, 3, 2]);
+//! assert_eq!(ranking_by_weight!(num_weights), VecDeque::from([(1, OrderedFloat(2.0)), (3, OrderedFloat(0.8)), (2, OrderedFloat(0.4))]));
 //! ```
 //!
 //! Building a histogram from a sequence of values is a common pattern. You can use the
@@ -136,6 +139,11 @@
 //    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
+
+// It won't compile without this import, but it issues a warning with it. Using #allow to make the
+// warning go away.
+#[allow(unused_imports)]
+use std::collections::VecDeque;
 
 #[macro_export]
 macro_rules! bump_skeleton {
@@ -246,11 +254,12 @@ macro_rules! mode_by_weight {
 }
 
 #[macro_export]
-macro_rules! rankify {
-    ($r:expr) => {
+macro_rules! ranking_skeleton {
+    ($seq:expr) => {
         {
-            $r.sort();
-            $r.drain(..).rev().map(|(_,t)| t).collect::<Vec<_>>()
+            let mut v = $seq.collect::<Vec<_>>();
+            v.sort();
+            v.drain(..).rev().map(|(a, b)| (b, a)).collect::<VecDeque<_>>()
         }
     }
 }
@@ -258,20 +267,14 @@ macro_rules! rankify {
 #[macro_export]
 macro_rules! ranking {
     ($d:expr) => {
-        {
-            let mut ranking = $d.iter().map(|(t, n)| (*n, t.clone())).collect::<Vec<_>>();
-            rankify!(ranking)
-        }
+        ranking_skeleton!($d.iter().map(|(t, n)| (*n, t.clone())))
     }
 }
 
 #[macro_export]
 macro_rules! ranking_by_weight {
     ($d:expr) => {
-        {
-            let mut ranking = $d.iter().map(|(t, n)| (ordered_float::OrderedFloat(*n), t.clone())).collect::<Vec<_>>();
-            rankify!(ranking)
-        }
+        ranking_skeleton!($d.iter().map(|(t, n)| (ordered_float::OrderedFloat(*n), t.clone())))
     }
 }
 
@@ -330,6 +333,7 @@ macro_rules! collect_from_ref_by_into {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
