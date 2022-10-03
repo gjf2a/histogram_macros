@@ -124,6 +124,42 @@
 //!     assert_eq!(weight_ref!(str_weights, s), w);
 //! }
 //! ```
+//!
+//! Alternatively, one can use histogram_struct! to create a custom histogram data type.
+//!
+//! ```
+//! use histogram_macros::histogram_struct;
+//!
+//! use std::hash::Hash;
+//! use std::collections::{HashSet,HashMap};
+//! use std::collections::hash_map::Iter;
+//!
+//! histogram_struct!{HashHistogram, HashHistKey, HashMap, HashSet, Iter, Hash}
+//!
+//! let mut hist = HashHistogram::new();
+//! let zeros = 10;
+//! let ones = 15;
+//! let twos = 20;
+//!
+//! for _ in 0..zeros {
+//!     hist.bump(&0);
+//! }
+//!
+//! for _ in 0..ones {
+//!     hist.bump(&1);
+//! }
+//!
+//! for _ in 0..twos {
+//!     hist.bump(&2);
+//! }
+//!
+//! assert_eq!(3, hist.all_labels().len());
+//! assert_eq!(zeros, hist.count(&0));
+//! assert_eq!(ones, hist.count(&1));
+//! assert_eq!(twos, hist.count(&2));
+//! assert_eq!(2, hist.mode().unwrap());
+//! assert_eq!(zeros + ones + twos, hist.total_count());
+//! ```
 
 
 //    Copyright 2022, Gabriel J. Ferrer
@@ -144,6 +180,72 @@
 // warning go away.
 #[allow(unused_imports)]
 use std::collections::VecDeque;
+use std::hash::Hash;
+use std::collections::{HashSet,HashMap};
+use std::collections::hash_map::Iter;
+
+#[macro_export]
+macro_rules! histogram_struct {
+    ($name:ident, $keyname:ident, $inner:ident, $labelset:ident, $iter:ident, $constraint:ident) => {
+        pub trait $keyname: std::fmt::Debug + $constraint + Clone + Eq {}
+        impl <T: std::fmt::Debug + $constraint + Clone + Eq> $keyname for T {}
+
+        pub struct $name<T:$keyname> {
+            histogram: $inner<T, usize>
+        }
+
+        impl <T:$keyname> $name<T> {
+            pub fn new() -> Self { $name { histogram: $inner::new()}}
+
+            pub fn bump(&mut self, item: &T) {
+                self.bump_by(item, 1);
+            }
+
+            pub fn bump_by(&mut self, item: &T, increment: usize) {
+                match self.histogram.get_mut(item) {
+                    None => {self.histogram.insert(item.clone(), increment);}
+                    Some(count) => {*count += increment;}
+                };
+            }
+
+            pub fn len(&self) -> usize {
+                self.histogram.len()
+            }
+
+            pub fn count(&self, item: &T) -> usize {
+                *self.histogram.get(item).unwrap_or(&0)
+            }
+
+            pub fn iter(&self) -> $iter<T,usize> {
+                self.histogram.iter()
+            }
+
+            pub fn all_labels(&self) -> $labelset<T> {
+                self.iter()
+                    .map(|(k, _)| k.clone())
+                    .collect()
+            }
+
+            pub fn ranking(&self) -> Vec<T> {
+                let mut ranking: Vec<(usize,T)> = self.iter().map(|(t, n)| (*n, t.clone())).collect();
+                ranking.sort_by_key(|(n,_)| -(*n as isize));
+                ranking.iter().map(|(_,t)| t.clone()).collect()
+            }
+
+            pub fn mode(&self) -> Option<T> {
+                self.iter()
+                    .max_by_key(|(_,count)| **count)
+                    .map(|(key, _)| key.clone())
+            }
+
+            pub fn total_count(&self) -> usize {
+                self.iter().map(|(_,value)| value).sum()
+            }
+        }
+    }
+}
+
+histogram_struct!{HashHistogram, HashHistKey, HashMap, HashSet, Iter, Hash}
 
 #[macro_export]
 macro_rules! bump_skeleton {
@@ -407,5 +509,32 @@ mod tests {
     fn test_collect_by() {
         let h = collect_from_ref_into!(["a", "b", "a", "b", "c", "b", "a", "c", "b"].iter().copied(), BTreeMap::<String, usize>::new());
         assert_eq!(format!("{:?}", h), r#"{"a": 3, "b": 4, "c": 2}"#);
+    }
+
+    #[test]
+    fn test_hist() {
+        let mut hist = HashHistogram::new();
+        let zeros = 10;
+        let ones = 15;
+        let twos = 20;
+
+        for _ in 0..zeros {
+            hist.bump(&0);
+        }
+
+        for _ in 0..ones {
+            hist.bump(&1);
+        }
+
+        for _ in 0..twos {
+            hist.bump(&2);
+        }
+
+        assert_eq!(3, hist.all_labels().len());
+        assert_eq!(zeros, hist.count(&0));
+        assert_eq!(ones, hist.count(&1));
+        assert_eq!(twos, hist.count(&2));
+        assert_eq!(2, hist.mode().unwrap());
+        assert_eq!(zeros + ones + twos, hist.total_count());
     }
 }
